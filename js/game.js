@@ -309,25 +309,38 @@ class Player extends Drawable {
     }
 }
 
-class Floor extends Drawable{
-    constructor(game){
-        super(game);
-        this.w = this.game.$zone.width();
-        this.h = 200;
-        this.x = this.game.$zone.width() / 2 - this.w / 2;
-        this.y = this.game.$zone.height() - this.h;
-        this.createElement();
-    }
-}
-
-class TestEnemy extends Drawable{
+class TestEnemy extends Player{
     constructor(game){
         super(game);
         this.w = 200;
         this.h = 200;
         this.x = this.game.$zone.width() / 2 - this.w / 2;
         this.y = 500;
+        this.keyBinds = {   // Костыль для замены стрелочек на WASD у второго противника
+            KeyA: "ArrowLeft",
+            KeyD: "ArrowRight",
+            KeyW: "ArrowUp",
+        }
+        this.hitbox.setBox(0, 0, 200, 200);
         this.createElement();
+        this.bindKeyEvents();
+    }
+
+    changeKeyStatus(code, value){
+        if(code in this.keyBinds){
+            this.keys[this.keyBinds[code]] = value;
+            console.log(code);
+        }
+    }
+
+    draw(){
+        this.$element.css({
+            left: this.x + "px",
+            top: this.y + "px",
+            width: this.w + "px",
+            height: this.h + "px",
+            backgroundImage: `url("img/apple.gif")`
+        })
     }
 }
 
@@ -376,6 +389,17 @@ class Hitbox extends Drawable{
             this.x = this.owner.w - this.x - this.w;
             this.mirror = !this.mirror;
         }
+    }
+}
+
+class Floor extends Drawable{
+    constructor(game){
+        super(game);
+        this.w = this.game.$zone.width();
+        this.h = 200;
+        this.x = this.game.$zone.width() / 2 - this.w / 2;
+        this.y = this.game.$zone.height() - this.h;
+        this.createElement();
     }
 }
 
