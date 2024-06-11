@@ -23,6 +23,8 @@ class Game {
         this.ended = false;
         this.keyEvents();
         this.shakeframes = 0;   // Кадры землетрясения
+
+        this.info = this.spawn(Info);
     }
 
     start(){
@@ -131,6 +133,7 @@ class Game {
     
     remove(el) {
         let idx = this.elements.indexOf(el);
+        el.removeElement();
         if (idx !== -1) {
             this.elements.splice(idx, 1);
             return true;
@@ -171,6 +174,7 @@ class Drawable {
             backgroundImage: `url("img/${this.sprite}.gif")`
         })
         this.game.$zone.append(this.$element);
+        return this.$element;
     }
 
     update(){
@@ -266,13 +270,13 @@ class Player extends Drawable {
     update(){
         // Определяем спрайт
         if (this.state == "stand") {
-            if (this.keys.ArrowLeft && this.hitbox.getX() > 0) {
+            if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
                 this.offsets.x = -this.speedPerFrame;
                 if (this.mirror)
                     this.sprite = `${this.fighter}_walk_back`
                 else
                     this.sprite = `${this.fighter}_walk`
-            } else if (this.keys.ArrowRight && this.hitbox.getX() < this.game.$zone.width() - this.hitbox.w){
+            } else if (this.keys.ArrowRight && this.hitbox.getX2() < this.game.$zone.width()){
                 this.offsets.x = this.speedPerFrame;
                 if (this.mirror)
                     this.sprite = `${this.fighter}_walk`
@@ -286,9 +290,11 @@ class Player extends Drawable {
                 this.va = -2;
                 this.offsets.y = -20;
             }
-            if(this.keys.KeyK){
+
+            if (this.keys.KeyK && this.va == 0){
                 // Удар Захара
-                this.punch(200, 100, 150, 30, 30, 60)
+                this.offsets.x = 0;
+                this.punch(115, 150, 115, 35, 30, 60)
             }
         }
         else {
@@ -299,9 +305,9 @@ class Player extends Drawable {
 
         this.x += this.offsets.x;
         
-        if (this.hitbox.getX() + this.hitbox.w / 2 > this.enemy.x + this.enemy.w / 2){
+        if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
             this.mirror = false;
-        } else if (this.hitbox.getX() + this.hitbox.w / 2 <= this.enemy.x + this.enemy.w / 2){
+        } else if (this.hitbox.getX1() + this.hitbox.w / 2 <= this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
             this.mirror = true;
         }
         this.hitbox.reverse()   // синхронизировать отражение
@@ -327,34 +333,16 @@ class Player extends Drawable {
             this.$element.css({transform: "scaleX(-1)"})
         else
             this.$element.css({transform: "scaleX(1)"})
-        if (this.game.showHitboxes)
             this.hitbox.draw();
-        else this.hitbox.hide();
     }
 
     punch(x, y, w, h, punchtime, lifetime){
         this.state = "punch";
-        let phb = new Hitbox(this.game, this);
+        let phb = new PunchHitbox(this.game, this, punchtime, lifetime);
+
         phb.setBox(x, y, 0, h);
         phb.punchWidth = w;
-        phb.lifetime = lifetime // Время жизни удара
-        phb.punchtime = punchtime   // Время достижения максимальной длины хитбокса
         this.game.elements.push(phb) // Нужно, чтобы спрайт обновлялся
-
-        phb.update = () => {
-            console.log(phb.w, phb.punchWidth, phb.lifetime)
-            // Длина хитбокса сначала увеличивается, потом уменьшается.
-            if (phb.lifetime > phb.punchtime){
-                phb.w = (phb.punchWidth / (2 * phb.punchtime)) * (2 * phb.punchtime - phb.lifetime)
-            } else if (phb.lifetime < phb.punchtime){
-                phb.w = (phb.punchWidth / (2 * phb.punchtime)) * phb.lifetime
-            }
-            if (phb.lifetime == 0){
-                phb.game.remove(phb)
-                phb.owner.state = "stand"
-            }
-            phb.lifetime -= 1;
-        }
     }
 }
 
@@ -403,7 +391,7 @@ class Hitbox extends Drawable{
         super(game);
         this.owner = owner;
         this.mirror = false;
-        this.createElement();
+        this.$element = this.createElement();
     }
 
     setBox(x, y, w, h){ // x, y - относительные
@@ -413,23 +401,39 @@ class Hitbox extends Drawable{
         this.y = y;
     }
 
-    getX(){
-        return this.owner.x + this.x
+    getX1(){
+        if (this.mirror)
+            return this.owner.x + this.owner.w - this.x - this.w
+        else
+            return this.owner.x + this.x
     }
     
-    getY(){
+    getY1(){
         return this.owner.y + this.y
+    }
+
+    getX2(){
+        if (this.mirror)
+            return this.owner.x + this.owner.w - this.x
+        else
+            return this.owner.x + this.x + this.w
+    }
+
+    getY2(){
+        return this.owner.y + this.y + this.h
     }
 
     draw(){
         // Положение хитбокса относительно
         this.$element.css({
-                left: this.owner.x + this.x + "px",
-                top: this.owner.y + this.y + "px",
+                left: this.getX1() + "px",
+                top: this.getY1() + "px",
                 width: this.w + "px",
                 height: this.h + "px",
                 opacity: "50%"
         })
+        /*if (this.mirror)
+            this.$element.css({left: this.owner.x + this.x - this.w + "px"})*/
         if (!this.owner.game.showHitboxes) this.$element.css({opacity: "0%"});
     }
     
@@ -440,10 +444,47 @@ class Hitbox extends Drawable{
     }
 
     reverse(){
+        // Проверка на поворот
         if (this.owner.mirror != this.mirror){
-            this.x = this.owner.w - this.x - this.w;
+            //this.x = this.owner.w - this.x - this.w;
+            // ВОБЩЕМ !!!!!!!
+            // Здесь координаты автоматически меняются при повороте
+            // я кажеццо переделал так, чтобы координаты не менялись
+            // но менялись значения getX1 getX2
+            // но я всё сломал (((((
             this.mirror = !this.mirror;
         }
+    }
+}
+
+class PunchHitbox extends Hitbox{
+    constructor(game, owner, punchtime, lifetime){
+        super(game, owner)
+        this.punchtime = punchtime // Время достижения максимальной длины хитбокса
+        this.lifetime = lifetime // Время жизни удара
+    }
+
+    update(){
+        this.reverse();
+        console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
+        // Длина хитбокса сначала увеличивается, потом уменьшается.
+        if (this.lifetime > this.punchtime){
+            this.w = (this.punchWidth / (2 * this.punchtime)) * (2 * this.punchtime - this.lifetime);
+        } else if (this.lifetime < this.punchtime){
+            this.w = (this.punchWidth / (2 * this.punchtime)) * this.lifetime;
+        }
+        if (this.lifetime == 0){
+            this.game.remove(this)
+            this.owner.state = "stand"
+        }
+        this.lifetime -= 1;
+    }
+
+    draw(){
+        super.draw();
+        if (!this.mirror)
+            this.$element.css({left: this.owner.x + this.x - this.w + "px"});
+        if (!this.owner.game.showHitboxes) this.$element.css({opacity: "0%"});
     }
 }
 
@@ -468,6 +509,29 @@ class Background extends Drawable{
         this.createElement();
     }
 }
+
+class Info extends Drawable{
+    constructor(game){
+        super(game);
+        this.w = 250;
+        this.h = 250;
+        this.createElement();
+    }
+
+    update(){
+        this.$element.html(
+            `
+            <div>p1<br>
+            x1 ${this.game.p1.x}<br>y1 ${this.game.p1.y}<br>
+            x2 ${this.game.p1.x + this.game.p1.w}<br>y2 ${this.game.p1.y + this.game.p1.h}</div>
+            <div>p1 hb<br>
+            x1 ${this.game.p1.hitbox.getX1()}<br>y1 ${this.game.p1.hitbox.getY1()}<br>
+            x2 ${this.game.p1.hitbox.getX2()}<br>y2 ${this.game.p1.hitbox.getY2()}</div>
+            `
+        )
+    }
+}
+
 
 let random = (min, max) => {
     min = Math.ceil(min);

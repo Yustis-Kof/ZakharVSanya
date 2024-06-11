@@ -14,6 +14,11 @@
     background-color: #00ffff;
     opacity: 40%;
 }
+.punchhitbox{
+    background-image: none !important;
+    background-color: #2bff00;
+    opacity: 40%;
+}
 #fight{
     width: 100vw;
     height: 100vh;
@@ -35,4 +40,16 @@
 }
 .testenemy{
     background-size: 200px 200px;
+}
+.info{
+    background-image: none !important;
+    width: 250px;
+    height: 250px;
+    display: flex;
+    position: absolute;
+}
+.info div {
+    position: relative;
+    display: inline-block;
+    width: 200px;
 }
