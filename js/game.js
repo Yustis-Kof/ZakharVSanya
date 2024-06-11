@@ -297,7 +297,7 @@ class Player extends Drawable {
             if (this.keys.KeyK && this.va == 0){
                 // Удар Захара
                 this.offsets.x = 0;
-                this.punch(162, 150, 115, 35, 30, 60)
+                this.punch(162, 300, 115, 35, 30, 60)
             }
         }
         else {
@@ -459,6 +459,23 @@ class Hitbox extends Drawable{
             this.mirror = !this.mirror;
         }
     }
+
+    isCollision(enemyhb){
+        let a = {
+            x1: this.getX1(),
+            x2: this.getX2(),
+            y1: this.getY1(),
+            y2: this.getY2(),        
+        }
+
+        let b = {
+            x1: enemyhb.getX1(),
+            x2: enemyhb.getX2(),
+            y1: enemyhb.getY1(),
+            y2: enemyhb.getY2(),        
+        }
+        return a.x1 < b.x2 && b.x1 < a.x2 && a.y1 < b.y2 && b.y1 < a.y2;
+    }
 }
 
 class PunchHitbox extends Hitbox{
@@ -471,6 +488,9 @@ class PunchHitbox extends Hitbox{
     update(){
         this.reverse();
         console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
+        if (this.isCollision(this.owner.enemy.hitbox)){
+            console.log("захар")
+        }
         // Длина хитбокса сначала увеличивается, потом уменьшается.
         if (this.lifetime > this.punchtime){
             this.w = (this.punchWidth / (2 * this.punchtime)) * (2 * this.punchtime - this.lifetime);
