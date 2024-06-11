@@ -297,7 +297,7 @@ class Player extends Drawable {
             if (this.keys.KeyK && this.va == 0){
                 // Удар Захара
                 this.offsets.x = 0;
-                this.punch(115, 150, 115, 35, 30, 60)
+                this.punch(162, 150, 115, 35, 30, 60)
             }
         }
         else {
@@ -341,11 +341,11 @@ class Player extends Drawable {
 
     punch(x, y, w, h, punchtime, lifetime){
         this.state = "punch";
-        let phb = new PunchHitbox(this.game, this, punchtime, lifetime);
+        this.phb = new PunchHitbox(this.game, this, punchtime, lifetime);
 
-        phb.setBox(x, y, 0, h);
-        phb.punchWidth = w;
-        this.game.elements.push(phb) // Нужно, чтобы спрайт обновлялся
+        this.phb.setBox(x, y, 0, h);
+        this.phb.punchWidth = w;
+        this.game.elements.push(this.phb) // Нужно, чтобы спрайт обновлялся
     }
 }
 
@@ -455,6 +455,7 @@ class Hitbox extends Drawable{
             // я кажеццо переделал так, чтобы координаты не менялись
             // но менялись значения getX1 getX2
             // но я всё сломал (((((
+            // upd: починил !!
             this.mirror = !this.mirror;
         }
     }
@@ -486,8 +487,15 @@ class PunchHitbox extends Hitbox{
     draw(){
         super.draw();
         if (!this.mirror)
-            this.$element.css({left: this.owner.x + this.x - this.w + "px"});
+            this.$element.css({left: this.getX1() + "px"});
         if (!this.owner.game.showHitboxes) this.$element.css({opacity: "0%"});
+    }
+
+    reverse(){
+        // Он типо зеркален относительно игрока
+        if (this.owner.mirror == this.mirror){
+            this.mirror = !this.mirror;
+        }
     }
 }
 
@@ -524,16 +532,25 @@ class Info extends Drawable{
     update(){
         if (!this.game.showInfo) this.$element.css({visibility: "hidden"})
         else {this.$element.css({visibility: "visible"})
+        let showstr =             `
+        <div>p1<br>
+        x1 ${this.game.p1.x}<br>y1 ${this.game.p1.y}<br>
+        x2 ${this.game.p1.x + this.game.p1.w}<br>y2 ${this.game.p1.y + this.game.p1.h}</div>
+        <div>p1 hb<br>
+        x1 ${this.game.p1.hitbox.getX1()}<br>y1 ${this.game.p1.hitbox.getY1()}<br>
+        x2 ${this.game.p1.hitbox.getX2()}<br>y2 ${this.game.p1.hitbox.getY2()}</div>
+        `
+        if (this.game.p1.state == "punch"){
+            showstr += `
+            <div>p1 phb<br>
+            x1 ${Math.floor(this.game.p1.phb.getX1())}<br>y1 ${this.game.p1.phb.getY1()}<br>
+            x2 ${Math.floor(this.game.p1.phb.getX2())}<br>y2 ${this.game.p1.phb.getY2()}</div>
+            `
+        }
         this.$element.html(
-            `
-            <div>p1<br>
-            x1 ${this.game.p1.x}<br>y1 ${this.game.p1.y}<br>
-            x2 ${this.game.p1.x + this.game.p1.w}<br>y2 ${this.game.p1.y + this.game.p1.h}</div>
-            <div>p1 hb<br>
-            x1 ${this.game.p1.hitbox.getX1()}<br>y1 ${this.game.p1.hitbox.getY1()}<br>
-            x2 ${this.game.p1.hitbox.getX2()}<br>y2 ${this.game.p1.hitbox.getY2()}</div>
-            `
+            showstr
         )
+
         }
     }
 }
