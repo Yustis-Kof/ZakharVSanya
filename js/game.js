@@ -21,6 +21,7 @@ class Game {
         this.showHitboxes = true;
         this.paused = false;
         this.ended = false;
+        this.showInfo = true;
         this.keyEvents();
         this.shakeframes = 0;   // Кадры землетрясения
 
@@ -149,6 +150,8 @@ class Game {
                 this.showHitboxes = !this.showHitboxes
             } else if (e.key == "s"){
                 this.shakeframes += 4;
+            } else if (e.key == "i"){
+                this.showInfo = !this.showInfo;
             }
         })
     }
@@ -519,6 +522,8 @@ class Info extends Drawable{
     }
 
     update(){
+        if (!this.game.showInfo) this.$element.css({visibility: "hidden"})
+        else {this.$element.css({visibility: "visible"})
         this.$element.html(
             `
             <div>p1<br>
@@ -529,6 +534,7 @@ class Info extends Drawable{
             x2 ${this.game.p1.hitbox.getX2()}<br>y2 ${this.game.p1.hitbox.getY2()}</div>
             `
         )
+        }
     }
 }
 
