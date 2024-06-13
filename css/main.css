@@ -19,6 +19,12 @@
     background-color: #2bff00;
     opacity: 40%;
 }
+.projectilehitbox{
+    background-image: none !important;
+    background-color: #ff6123;
+    opacity: 40%;
+}
+
 #fight{
     width: 100vw;
     height: 100vh;
@@ -57,4 +63,8 @@
 .healthbar {
     background-image: none !important;
     background-color: red;
+}
+.xraybar {
+    background-image: none !important;
+    background-color: darkorange;
 }
