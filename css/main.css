@@ -43,7 +43,7 @@
 }
 .info{
     background-image: none !important;
-    width: 250px;
+    width: 600px !important;
     height: 250px;
     display: flex;
     position: absolute;
@@ -52,4 +52,9 @@
     position: relative;
     display: inline-block;
     width: 200px;
+}
+
+.healthbar {
+    background-image: none !important;
+    background-color: red;
 }
