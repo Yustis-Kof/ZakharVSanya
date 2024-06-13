@@ -6,8 +6,17 @@ class Game {
         this.floor = this.spawn(Floor); 
         this.bg = this.spawn(Background);
         this.p1 = this.spawn_player("zakhar");
+        this.hpbar = new HealthBar(this, this.p1);
+        this.elements.push(this.hpbar);
+
         this.p1.enemy = this.spawn(TestEnemy);
         this.p1.enemy.enemy = this.p1
+
+        this.ehpbar = new HealthBar(this, this.p1.enemy);
+
+        this.elements.push(this.ehpbar);
+        this.ehpbar.mirror = true;
+        this.ehpbar.x = this.$zone.width() - 120;
         //this.p1.enemy = ...
         this.counterForTimer = 0;
         this.points = 0;
@@ -21,7 +30,7 @@ class Game {
         this.showHitboxes = true;
         this.paused = false;
         this.ended = false;
-        this.showInfo = true;
+        this.showInfo = false;
         this.keyEvents();
         this.shakeframes = 0;   // Кадры землетрясения
 
@@ -226,11 +235,12 @@ class Player extends Drawable {
         super(game);
         this.fighter = fighter  // Имя бойца
         this.sprite = `${fighter}_stand`
-        
+        this.hp = 100;
+
         // Координаты, скорость
         this.w = 279;
         this.h = 479;
-        this.x = 20;
+        this.x = this.game.$zone.width() / 1.2 - this.w / 2;
         this.y = 0;
         this.mirror = false;
         this.speedPerFrame = 5;
@@ -249,10 +259,17 @@ class Player extends Drawable {
 
         // Состояние
         this.state = "stand"
+        this.cooldown = 0;
 
         // Хитбокс
+        this.dhb = { // По дефолту
+            x: 117,
+            y: 72,
+            w: 78,
+            h: 407
+        }
         this.hitbox = new Hitbox(this.game, this);
-        this.hitbox.setBox(117, 72, 78, 407);
+        this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
 
         // Противник
         this.enemy = this.game.floor;
@@ -302,11 +319,35 @@ class Player extends Drawable {
         }
         else {
             this.sprite = `${this.fighter}_${this.state}`
+            if (this.state == "damage"){
+                if (this.va != 0){
+                    this.va = 0;
+                    if (this.mirror) this.offsets.x = -15;
+                    else this.offsets.x = 15;
+                    console.log(1)
+                    this.w = [this.h, this.h = this.w][0] // Свап
+                    this.state = "damage_lie";
+                } else this.offsets.x = 0;
+                if (this.cooldown == 0) this.state = "stand";
+                this.cooldown -= 1;
+            }
+            else if (this.state == "damage_lie"){
+                this.hitbox.setBox(0, 135, 407, 78);
+                if (this.cooldown == 0){
+                    this.state = "stand";
+                    this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
+                    this.w = [this.h, this.h = this.w][0] // Свап
+                    this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
+                }
+                this.cooldown -= 1;
+            }
         }
 
-
-
+        if (this.hitbox.getX1() < 0 || this.hitbox.getX2 > this.game.$zone.width())
+            this.offsets.x = -this.offsets.x;
+        
         this.x += this.offsets.x;
+        
         
         if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
             this.mirror = false;
@@ -317,11 +358,19 @@ class Player extends Drawable {
         
         // Столкновение с полом просчитывается по самому элементу;
         // Тем не менее, в остальных столкновениях будет использоваться хитбокс
-        if (this.isCollision(this.game.floor)){
+        if (this.hitbox.isCollision(this.game.floor.hitbox)){
+            //console.log(this)
             if (this.offsets.y > 0){
                 this.va = 0;
                 this.offsets.y = 0;
-                this.y = this.game.floor.y-this.h+1;
+                this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
+                if (this.state != "stand"){
+                    this.offsets.x = 0;
+                    if (this.state == "damage_lie"){
+                        this.hp -= 1;   // Ну он же упал, лол, это больно
+                        this.game.shakeframes += 4;
+                    }
+                }
             }
         } else {
             this.va = this.gravity
@@ -339,6 +388,17 @@ class Player extends Drawable {
             this.hitbox.draw();
     }
 
+    takeDamage(hp){
+        if (this.state != "damage" && this.state != "damage_lie"){
+            this.state = "damage";
+            this.cooldown = 60;
+            this.hp -= hp;
+        }
+        if (this.hp <= 0){
+            this.die()
+        }
+    }
+
     punch(x, y, w, h, punchtime, lifetime){
         this.state = "punch";
         this.phb = new PunchHitbox(this.game, this, punchtime, lifetime);
@@ -354,14 +414,23 @@ class TestEnemy extends Player{
         super(game);
         this.w = 200;
         this.h = 200;
-        this.x = this.game.$zone.width() / 2 - this.w / 2;
+        this.x = 20;
         this.y = 500;
         this.keyBinds = {   // Костыль для замены стрелочек на WASD у второго противника
             KeyA: "ArrowLeft",
             KeyD: "ArrowRight",
             KeyW: "ArrowUp",
+            KeyE: "KeyK"
         }
-        this.hitbox.setBox(0, 0, 200, 200);
+        
+        // Хитбокс
+        this.dhb = { // По дефолту
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 200,
+        }
+        this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
         this.bindKeyEvents();
     }
 
@@ -386,6 +455,10 @@ class TestEnemy extends Player{
             this.$element.css({transform: "scaleX(1)"})
         this.hitbox.draw();     // Нужно, чтобы хитбоксы обновляли координаты. В принципе этого не нужно
                                 // так как при вычислениях координаты берутся через getX getY, но пусть
+    }
+
+    punch(x, y, w, h, punchtime, lifetime){
+        super.punch(200, 20, 115, 35, 30, 60);
     }
 }
 
@@ -487,9 +560,10 @@ class PunchHitbox extends Hitbox{
 
     update(){
         this.reverse();
-        console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
+        //console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
+        // Коллизия
         if (this.isCollision(this.owner.enemy.hitbox)){
-            console.log("захар")
+            this.owner.enemy.takeDamage(5);
         }
         // Длина хитбокса сначала увеличивается, потом уменьшается.
         if (this.lifetime > this.punchtime){
@@ -526,6 +600,8 @@ class Floor extends Drawable{
         this.h = 200;
         this.x = this.game.$zone.width() / 2 - this.w / 2;
         this.y = this.game.$zone.height() - this.h;
+        this.hitbox = new Hitbox(this.game, this);
+        this.hitbox.setBox(0, 0, this.w, this.h);
         this.createElement();
     }
 }
@@ -538,6 +614,29 @@ class Background extends Drawable{
         this.x = 10;
         this.y = this.game.$zone.height() - this.game.floor.h - this.h;
         this.createElement();
+    }
+}
+
+class HealthBar extends Drawable{
+    constructor(game, owner){
+        super(game);
+        this.owner = owner;
+        this.x = 20;
+        this.y = 20;
+        this.h = 20;
+        this.w = this.owner.hp;
+        this.mirror = false;
+        this.$element = this.createElement();
+    }
+
+    update(){
+        if (this.mirror)
+            this.x += this.w - this.owner.hp;
+        this.w = this.owner.hp;
+    }
+
+    draw(){
+        super.draw();
     }
 }
 
