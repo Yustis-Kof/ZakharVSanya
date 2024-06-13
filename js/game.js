@@ -5,18 +5,26 @@ class Game {
         this.elements = [];
         this.floor = this.spawn(Floor); 
         this.bg = this.spawn(Background);
+
         this.p1 = this.spawn_player("zakhar");
         this.hpbar = new HealthBar(this, this.p1);
         this.elements.push(this.hpbar);
+        this.hpbar.mirror = true;
+        this.hpbar.x = this.$zone.width() - 120;
+
+        this.xrbar = new XRayBar(this, this.p1);
+        this.elements.push(this.xrbar);
+        this.xrbar.mirror = true;
+        this.xrbar.x = this.$zone.width() - 20;
 
         this.p1.enemy = this.spawn(TestEnemy);
         this.p1.enemy.enemy = this.p1
 
         this.ehpbar = new HealthBar(this, this.p1.enemy);
-
         this.elements.push(this.ehpbar);
-        this.ehpbar.mirror = true;
-        this.ehpbar.x = this.$zone.width() - 120;
+
+        this.exrbar = new XRayBar(this, this.p1.enemy);
+        this.elements.push(this.exrbar)
         //this.p1.enemy = ...
         this.counterForTimer = 0;
         this.points = 0;
@@ -236,6 +244,7 @@ class Player extends Drawable {
         this.fighter = fighter  // Имя бойца
         this.sprite = `${fighter}_stand`
         this.hp = 100;
+        this.xray = 0;
 
         // Координаты, скорость
         this.w = 279;
@@ -253,6 +262,7 @@ class Player extends Drawable {
             ArrowRight: false,
             ArrowUp: false,
             KeyK: false,
+            KeyL: false,
         }; // Вообще говоря, вводить как бы виртуальные флаги для клавиш - хорошая идея. Надо это запомнить
         this.createElement();
         this.bindKeyEvents();
@@ -288,8 +298,21 @@ class Player extends Drawable {
     }
 
     update(){
+        // XRay
+        if (this.xray > 100)
+            this.xray = 100;
+
         // Определяем спрайт
         if (this.state == "stand") {
+
+            // Проверка отражения
+            if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
+                this.mirror = false;
+            } else if (this.hitbox.getX1() + this.hitbox.w / 2 <= this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
+                this.mirror = true;
+            }
+            this.hitbox.reverse()   // синхронизировать отражение
+
             if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
                 this.offsets.x = -this.speedPerFrame;
                 if (this.mirror)
@@ -311,10 +334,18 @@ class Player extends Drawable {
                 this.offsets.y = -20;
             }
 
+            // Удар Захара
             if (this.keys.KeyK && this.va == 0){
-                // Удар Захара
                 this.offsets.x = 0;
                 this.punch(162, 300, 115, 35, 30, 60)
+            }
+
+            // Спецатака Захара
+            if (this.keys.KeyL && this.va == 0){
+                this.offsets.x = 0;
+                this.projectile(162, 0, 35, 35)
+                this.state = "fire";
+                this.cooldown = 60;
             }
         }
         else {
@@ -341,20 +372,20 @@ class Player extends Drawable {
                 }
                 this.cooldown -= 1;
             }
+            else if (this.state == "fire"){
+                if (this.cooldown == 0){
+                    this.state = "stand";
+                }
+                this.cooldown -= 1;
+            }
         }
 
-        if (this.hitbox.getX1() < 0 || this.hitbox.getX2 > this.game.$zone.width())
+        if (this.offsets.y != 0 && this.state == "damage_lie" &&
+        (this.hitbox.getX1() < 0 || this.hitbox.getX2() > this.game.$zone.width()))
             this.offsets.x = -this.offsets.x;
         
         this.x += this.offsets.x;
         
-        
-        if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
-            this.mirror = false;
-        } else if (this.hitbox.getX1() + this.hitbox.w / 2 <= this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
-            this.mirror = true;
-        }
-        this.hitbox.reverse()   // синхронизировать отражение
         
         // Столкновение с полом просчитывается по самому элементу;
         // Тем не менее, в остальных столкновениях будет использоваться хитбокс
@@ -367,7 +398,7 @@ class Player extends Drawable {
                 if (this.state != "stand"){
                     this.offsets.x = 0;
                     if (this.state == "damage_lie"){
-                        this.hp -= 1;   // Ну он же упал, лол, это больно
+                        this.takeDamage(2);   // Ну он же упал, лол, это больно
                         this.game.shakeframes += 4;
                     }
                 }
@@ -389,9 +420,11 @@ class Player extends Drawable {
     }
 
     takeDamage(hp){
+
         if (this.state != "damage" && this.state != "damage_lie"){
             this.state = "damage";
             this.cooldown = 60;
+            this.xray += hp;
             this.hp -= hp;
         }
         if (this.hp <= 0){
@@ -407,6 +440,15 @@ class Player extends Drawable {
         this.phb.punchWidth = w;
         this.game.elements.push(this.phb) // Нужно, чтобы спрайт обновлялся
     }
+
+    projectile(x, y, w, h){
+        this.state = "fire";
+        let speed = -5;
+        if (this.mirror) speed = 5
+        this.bhb = new ProjectileHitbox(this.game, this, {x: speed, y: 0});
+        this.bhb.setBox(x, y, w, h);
+        this.game.elements.push(this.bhb) // Нужно, чтобы спрайт обновлялся
+    }
 }
 
 class TestEnemy extends Player{
@@ -420,7 +462,8 @@ class TestEnemy extends Player{
             KeyA: "ArrowLeft",
             KeyD: "ArrowRight",
             KeyW: "ArrowUp",
-            KeyE: "KeyK"
+            KeyE: "KeyK",
+            KeyQ: "KeyL",
         }
         
         // Хитбокс
@@ -563,6 +606,8 @@ class PunchHitbox extends Hitbox{
         //console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
         // Коллизия
         if (this.isCollision(this.owner.enemy.hitbox)){
+            if (this.owner.enemy.state != "damage" && this.owner.enemy.state != "damage_lie")
+                this.owner.xray += 15;
             this.owner.enemy.takeDamage(5);
         }
         // Длина хитбокса сначала увеличивается, потом уменьшается.
@@ -589,6 +634,23 @@ class PunchHitbox extends Hitbox{
         // Он типо зеркален относительно игрока
         if (this.owner.mirror == this.mirror){
             this.mirror = !this.mirror;
+        }
+    }
+}
+
+class ProjectileHitbox extends Hitbox{
+    constructor(game, owner, offsets){
+        super(game, owner);
+        this.offsets = offsets;
+    }
+
+    update(){
+        this.x += this.offsets.x;
+        if (this.isCollision(this.owner.enemy.hitbox)){
+            if (this.owner.enemy.state != "damage" && this.owner.enemy.state != "damage_lie")
+                this.owner.xray += 15;
+            this.owner.enemy.takeDamage(5);
+            this.game.remove(this)
         }
     }
 }
@@ -637,6 +699,21 @@ class HealthBar extends Drawable{
 
     draw(){
         super.draw();
+    }
+}
+
+class XRayBar extends HealthBar{
+    constructor(game, owner){
+        super(game, owner);
+        this.y = 50;
+        this.h = 5;
+        this.w = this.owner.xray;
+    }
+
+    update(){
+        if (this.mirror)
+            this.x += this.w - this.owner.xray;
+        this.w = this.owner.xray;
     }
 }
 
