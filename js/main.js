@@ -10,7 +10,7 @@ let nav = () => {
         e.preventDefault();
         switch (e.target.id) {
         case "startGame":
-            go('fight', 'd-block');
+            go('fight', 'd-flex');
             break;
         case "restart":
             go('fight', 'd-block');

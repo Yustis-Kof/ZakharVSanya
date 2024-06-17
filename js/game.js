@@ -244,7 +244,7 @@ class Player extends Drawable {
         this.fighter = fighter  // Имя бойца
         this.sprite = `${fighter}_stand`
         this.hp = 100;
-        this.xray = 0;
+        this.xray = 45;
 
         // Координаты, скорость
         this.w = 279;
@@ -277,7 +277,21 @@ class Player extends Drawable {
             y: 72,
             w: 78,
             h: 407
-        }
+        };
+		
+		this.lie_hb = { // Лежить
+			x: 0,
+			y: 135,
+			w: 407,
+			h: 78 
+		};
+		
+		this.duck_hb = { // Прижок
+			x: 0,
+			y: 0,
+			w: 0,
+			h: 0
+		};
         this.hitbox = new Hitbox(this.game, this);
         this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
 
@@ -304,7 +318,6 @@ class Player extends Drawable {
 
         // Определяем спрайт
         if (this.state == "stand") {
-
             // Проверка отражения
             if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
                 this.mirror = false;
@@ -314,13 +327,23 @@ class Player extends Drawable {
             this.hitbox.reverse()   // синхронизировать отражение
 
             if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
+				
                 this.offsets.x = -this.speedPerFrame;
-                if (this.mirror)
+				/*
+                if (this.hitbox.isCollision(this.enemy.hitbox)){
+					this.offsets.x = -this.speedPerFrame/2;
+					this.enemy.offsets.x = -this.speedPerFrame/2;
+				}*/
+				if (this.mirror)
                     this.sprite = `${this.fighter}_walk_back`
                 else
                     this.sprite = `${this.fighter}_walk`
             } else if (this.keys.ArrowRight && this.hitbox.getX2() < this.game.$zone.width()){
                 this.offsets.x = this.speedPerFrame;
+				/*if (this.hitbox.isCollision(this.enemy.hitbox)){
+					this.offsets.x = this.speedPerFrame/2;
+					this.enemy.offsets.x = this.speedPerFrame/2;
+				}*/
                 if (this.mirror)
                     this.sprite = `${this.fighter}_walk`
                 else
@@ -333,6 +356,18 @@ class Player extends Drawable {
                 this.va = -2;
                 this.offsets.y = -20;
             }
+			
+					
+			// Непрохождение друг сквозь друга
+			if (this.hitbox.isCollision(this.enemy.hitbox)){
+				if (this.mirror){
+					this.offsets.x += -this.speedPerFrame/0.9;
+				}
+				else
+					this.offsets.x += this.speedPerFrame/0.9
+			}
+			
+				
 
             // Удар Захара
             if (this.keys.KeyK && this.va == 0){
@@ -341,9 +376,8 @@ class Player extends Drawable {
             }
 
             // Спецатака Захара
-            if (this.keys.KeyL && this.va == 0){
+            if (this.keys.KeyL && this.va == 0 && this.xray >= 25){
                 this.offsets.x = 0;
-                this.projectile(162, 0, 35, 35)
                 this.state = "fire";
                 this.cooldown = 60;
             }
@@ -363,7 +397,7 @@ class Player extends Drawable {
                 this.cooldown -= 1;
             }
             else if (this.state == "damage_lie"){
-                this.hitbox.setBox(0, 135, 407, 78);
+                this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
                 if (this.cooldown == 0){
                     this.state = "stand";
                     this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
@@ -373,6 +407,9 @@ class Player extends Drawable {
                 this.cooldown -= 1;
             }
             else if (this.state == "fire"){
+				if (this.cooldown == 30){
+					this.projectile(162, this.dhb.x+15, 35, 35)
+				}
                 if (this.cooldown == 0){
                     this.state = "stand";
                 }
@@ -383,9 +420,12 @@ class Player extends Drawable {
         if (this.offsets.y != 0 && this.state == "damage_lie" &&
         (this.hitbox.getX1() < 0 || this.hitbox.getX2() > this.game.$zone.width()))
             this.offsets.x = -this.offsets.x;
+		
+		if (!(this.hitbox.getX1() <= 0 && this.offsets.x < 0) &&
+			!(this.hitbox.getX2() >= this.game.$zone.width() && this.offsets.x > 0))	// Да, дважды проверяю выпадение из арены, а что?
+			this.x += this.offsets.x;
         
-        this.x += this.offsets.x;
-        
+		
         
         // Столкновение с полом просчитывается по самому элементу;
         // Тем не менее, в остальных столкновениях будет использоваться хитбокс
@@ -432,9 +472,9 @@ class Player extends Drawable {
         }
     }
 
-    punch(x, y, w, h, punchtime, lifetime){
+    punch(x, y, w, h, punchtime, lifetime, repeats=1){
         this.state = "punch";
-        this.phb = new PunchHitbox(this.game, this, punchtime, lifetime);
+        this.phb = new PunchHitbox(this.game, this, punchtime, lifetime, repeats);
 
         this.phb.setBox(x, y, 0, h);
         this.phb.punchWidth = w;
@@ -443,7 +483,8 @@ class Player extends Drawable {
 
     projectile(x, y, w, h){
         this.state = "fire";
-        let speed = -5;
+        let speed;
+		speed = -5;
         if (this.mirror) speed = 5
         this.bhb = new ProjectileHitbox(this.game, this, {x: speed, y: 0});
         this.bhb.setBox(x, y, w, h);
@@ -473,6 +514,14 @@ class TestEnemy extends Player{
             w: 200,
             h: 200,
         }
+
+		this.lie_hb = { // Лежить
+			x: 0,
+			y: 0,
+			w: 200,
+			h: 200
+		};
+		
         this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
         this.bindKeyEvents();
     }
@@ -595,10 +644,12 @@ class Hitbox extends Drawable{
 }
 
 class PunchHitbox extends Hitbox{
-    constructor(game, owner, punchtime, lifetime){
+    constructor(game, owner, punchtime, lifetime, repeats){
         super(game, owner)
+		this.repeats = repeats	// Повторение удара
         this.punchtime = punchtime // Время достижения максимальной длины хитбокса
         this.lifetime = lifetime // Время жизни удара
+		this.maxlifetime = lifetime
     }
 
     update(){
@@ -617,8 +668,13 @@ class PunchHitbox extends Hitbox{
             this.w = (this.punchWidth / (2 * this.punchtime)) * this.lifetime;
         }
         if (this.lifetime == 0){
-            this.game.remove(this)
-            this.owner.state = "stand"
+			if (this.repeats <= 1){
+				this.game.remove(this)
+				this.owner.state = "stand"
+			} else {
+				this.lifetime = this.maxlifetime;
+				this.repeats -= 1;
+			}
         }
         this.lifetime -= 1;
     }
@@ -639,13 +695,38 @@ class PunchHitbox extends Hitbox{
 }
 
 class ProjectileHitbox extends Hitbox{
-    constructor(game, owner, offsets){
+    constructor(game, owner, _offsets){
         super(game, owner);
-        this.offsets = offsets;
+        this._offsets = _offsets;
+    }
+
+    setBox(x, y, w, h){ // x, y - относительные
+        this.w = w;
+        this.h = h;
+        this.x = x;
+        this.y = y;
+		this.x = super.getX1();
+		this.y = super.getY1();
+    }
+
+    getX1(){
+		return this.x
+    }
+    
+    getY1(){
+		return this.y
+    }
+
+    getX2(){
+        return this.x + this.w
+    }
+
+    getY2(){
+        return this.y + this.h
     }
 
     update(){
-        this.x += this.offsets.x;
+        this.x += this._offsets.x;
         if (this.isCollision(this.owner.enemy.hitbox)){
             if (this.owner.enemy.state != "damage" && this.owner.enemy.state != "damage_lie")
                 this.owner.xray += 15;
@@ -658,8 +739,9 @@ class ProjectileHitbox extends Hitbox{
 class Floor extends Drawable{
     constructor(game){
         super(game);
+		this.sprite = "nevidimy";
         this.w = this.game.$zone.width();
-        this.h = 200;
+        this.h = 10;
         this.x = this.game.$zone.width() / 2 - this.w / 2;
         this.y = this.game.$zone.height() - this.h;
         this.hitbox = new Hitbox(this.game, this);
@@ -671,10 +753,15 @@ class Floor extends Drawable{
 class Background extends Drawable{
     constructor(game){
         super(game);
-        this.w = this.game.$zone.width()+1400;
+		this.sprite = "background";
+        /* this.w = this.game.$zone.width()+1400;
         this.h = 40;
         this.x = 10;
-        this.y = this.game.$zone.height() - this.game.floor.h - this.h;
+        this.y = this.game.$zone.height() - this.game.floor.h - this.h; */
+		this.x = 0;
+		this.y = 0;
+		this.w = this.game.$zone.width();
+		this.h = this.game.$zone.height();
         this.createElement();
     }
 }
