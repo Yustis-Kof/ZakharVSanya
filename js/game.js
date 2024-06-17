@@ -5,19 +5,32 @@ class Game {
         this.elements = [];
         this.floor = this.spawn(Floor); 
         this.bg = this.spawn(Background);
-
+		
+		// Наблюдатели
+		this.watchers = {
+			daniil: 0,
+			yegor: 0
+		}
+		this.watchers.daniil = this.spawn(Watcher);
+		this.watchers.daniil.sprite = "daniil";
+		this.watchers.daniil.x = this.$zone.width() * 0.30631;
+		this.watchers.daniil.y = this.$zone.height() * 0.37031;
+		this.watchers.daniil.w = 101;
+		this.watchers.daniil.h = 192;
+		
+		
         this.p1 = this.spawn_player("zakhar");
         this.hpbar = new HealthBar(this, this.p1);
         this.elements.push(this.hpbar);
         this.hpbar.mirror = true;
-        this.hpbar.x = this.$zone.width() - 120;
+        this.hpbar.x = this.$zone.width() - 303;
 
         this.xrbar = new XRayBar(this, this.p1);
         this.elements.push(this.xrbar);
         this.xrbar.mirror = true;
-        this.xrbar.x = this.$zone.width() - 20;
+        this.xrbar.x = this.$zone.width() - 350;
 
-        this.p1.enemy = this.spawn(TestEnemy);
+        this.p1.enemy = this.spawn(Dad);
         this.p1.enemy.enemy = this.p1
 
         this.ehpbar = new HealthBar(this, this.p1.enemy);
@@ -25,6 +38,8 @@ class Game {
 
         this.exrbar = new XRayBar(this, this.p1.enemy);
         this.elements.push(this.exrbar)
+		
+		
         //this.p1.enemy = ...
         this.counterForTimer = 0;
         this.points = 0;
@@ -127,8 +142,8 @@ class Game {
     shake(){
         if (this.shakeframes > 0){
             this.$zone.css({
-                marginLeft: Math.random()*8-4,
-                marginTop: Math.random()*8-4,
+                marginLeft: Math.random()*10-5,
+                marginTop: Math.random()*10-5,
             })
             this.shakeframes -= 1;
         } else this.$zone.css({
@@ -238,12 +253,19 @@ class Drawable {
     } // Вроде не надо
 }
 
+class Watcher extends Drawable{
+	constructor(game){
+		super(game);
+		this.createElement();
+	}
+}
+
 class Player extends Drawable {
     constructor(game, fighter) {
         super(game);
         this.fighter = fighter  // Имя бойца
         this.sprite = `${fighter}_stand`
-        this.hp = 100;
+        this.hp = 143;
         this.xray = 45;
 
         // Координаты, скорость
@@ -353,8 +375,8 @@ class Player extends Drawable {
                 this.sprite = `${this.fighter}_stand`
             }
             if (this.keys.ArrowUp && this.va == 0){
-                this.va = -2;
-                this.offsets.y = -20;
+                this.va = -3;
+                this.offsets.y = -30;
             }
 			
 					
@@ -376,10 +398,8 @@ class Player extends Drawable {
             }
 
             // Спецатака Захара
-            if (this.keys.KeyL && this.va == 0 && this.xray >= 25){
-                this.offsets.x = 0;
-                this.state = "fire";
-                this.cooldown = 60;
+            if (this.keys.KeyL && this.va == 0){
+                this.special();
             }
         }
         else {
@@ -394,7 +414,7 @@ class Player extends Drawable {
                     this.state = "damage_lie";
                 } else this.offsets.x = 0;
                 if (this.cooldown == 0) this.state = "stand";
-                this.cooldown -= 1;
+					this.cooldown -= 1;
             }
             else if (this.state == "damage_lie"){
                 this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
@@ -404,7 +424,8 @@ class Player extends Drawable {
                     this.w = [this.h, this.h = this.w][0] // Свап
                     this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
                 }
-                this.cooldown -= 1;
+				if (this.va == 0)
+					this.cooldown -= 1;
             }
             else if (this.state == "fire"){
 				if (this.cooldown == 30){
@@ -418,8 +439,11 @@ class Player extends Drawable {
         }
 
         if (this.offsets.y != 0 && this.state == "damage_lie" &&
-        (this.hitbox.getX1() < 0 || this.hitbox.getX2() > this.game.$zone.width()))
+        (this.hitbox.getX1() < 0 || this.hitbox.getX2() > this.game.$zone.width())){
+			this.game.shakeframes += 2;
             this.offsets.x = -this.offsets.x;
+			this.takeDamage(1);
+		}
 		
 		if (!(this.hitbox.getX1() <= 0 && this.offsets.x < 0) &&
 			!(this.hitbox.getX2() >= this.game.$zone.width() && this.offsets.x > 0))	// Да, дважды проверяю выпадение из арены, а что?
@@ -490,6 +514,15 @@ class Player extends Drawable {
         this.bhb.setBox(x, y, w, h);
         this.game.elements.push(this.bhb) // Нужно, чтобы спрайт обновлялся
     }
+
+	special(){
+		if (this.xray >= 15){
+			this.xray -= 15;
+			this.offsets.x = 0;
+			this.state = "fire";
+			this.cooldown = 60;
+		}
+	}
 }
 
 class TestEnemy extends Player{
@@ -549,6 +582,53 @@ class TestEnemy extends Player{
                                 // так как при вычислениях координаты берутся через getX getY, но пусть
     }
 
+    punch(x, y, w, h, punchtime, lifetime){
+        super.punch(200, 20, 115, 35, 30, 60);
+    }
+}
+
+class Dad extends Player{
+    constructor(game){
+        super(game);
+		this.fighter = "sanya";
+        this.w = 279;
+        this.h = 479;
+        this.x = 20;
+        this.y = 500;
+        this.keyBinds = {   // Костыль для замены стрелочек на WASD у второго противника
+            KeyA: "ArrowLeft",
+            KeyD: "ArrowRight",
+            KeyW: "ArrowUp",
+            KeyE: "KeyK",
+            KeyQ: "KeyL",
+        }
+        
+        // Хитбокс
+        this.dhb = { // По дефолту
+            x: 123,
+            y: 57,
+            w: 65,
+            h: 422,
+        }
+
+		this.lie_hb = { // Лежить
+			x: 0,
+			y: 0,
+			w: 200,
+			h: 200
+		};
+		
+        this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
+        this.bindKeyEvents();
+    }
+
+    changeKeyStatus(code, value){
+        if(code in this.keyBinds){
+            this.keys[this.keyBinds[code]] = value;
+            console.log(code);
+        }
+    }
+	
     punch(x, y, w, h, punchtime, lifetime){
         super.punch(200, 20, 115, 35, 30, 60);
     }
@@ -700,7 +780,7 @@ class ProjectileHitbox extends Hitbox{
         this._offsets = _offsets;
     }
 
-    setBox(x, y, w, h){ // x, y - относительные
+    setBox(x, y, w, h){ // x, y - АБСОЛЮТНЫЕ!
         this.w = w;
         this.h = h;
         this.x = x;
@@ -772,35 +852,90 @@ class HealthBar extends Drawable{
         this.owner = owner;
         this.x = 20;
         this.y = 20;
-        this.h = 20;
-        this.w = this.owner.hp;
+        this.h = 24;
+        this.w = this.owner.hp*2;
+		this.maxw = this.w;
         this.mirror = false;
-        this.$element = this.createElement();
+        this.createElement();
     }
 
     update(){
-        if (this.mirror)
-            this.x += this.w - this.owner.hp;
-        this.w = this.owner.hp;
+        if (this.mirror){
+			this.x += this.w - this.owner.hp*2;
+		}
+        this.w = this.owner.hp*2;
     }
 
     draw(){
-        super.draw();
+        this.$inner.css({
+            left: this.x + "px",
+            top: this.y + "px",
+            width: this.w + "px",
+            height: this.h + "px",
+			backgroundPositionX: this.w
+        });
+		if (this.mirror)
+			this.$outer.css({
+				left: this.x-4 - (this.maxw - this.w) + "px",
+				top: this.y-6 + "px",
+				width: this.maxw+9 + "px",
+				height: this.h*1.5 + "px",
+			})
+		else
+			this.$outer.css({
+				left: this.x-4 + "px",
+				top: this.y-6 + "px",
+				width: this.maxw+9 + "px",
+				height: this.h*1.5 + "px",
+			})
+    }
+	
+	createElement(){
+		this.$outer = $(`<div class="element outer-${this.constructor.name.toLowerCase()}"></div>`);
+		this.$inner = $(`<div class="element ${this.constructor.name.toLowerCase()}"></div>`);
+        this.game.$zone.append(this.$inner);
+		this.game.$zone.append(this.$outer);
     }
 }
 
 class XRayBar extends HealthBar{
     constructor(game, owner){
         super(game, owner);
-        this.y = 50;
-        this.h = 5;
-        this.w = this.owner.xray;
+		this.x = 45;
+        this.y = 65;
+        this.h = 17;
+        this.w = 301;
+		this.maxw = this.w;
     }
 
     update(){
         if (this.mirror)
-            this.x += this.w - this.owner.xray;
-        this.w = this.owner.xray;
+            this.x += this.w - this.owner.xray*3;
+        this.w = this.owner.xray*3;
+    }
+	
+	    draw(){
+        this.$inner.css({
+            left: this.x + "px",
+            top: this.y + "px",
+            width: this.w + "px",
+            height: this.h + "px",
+			backgroundPositionX: this.ox - this.maxw - this.w
+        });
+		if (this.mirror)
+			this.$outer.css({
+				left: this.x-40 - (this.maxw - this.w) + "px",
+				top: this.y-13 + "px",
+				width: this.maxw+81 + "px",
+				height: this.h+21 + "px",
+			})
+		else
+			this.$outer.css({
+				left: this.x-40 + "px",
+				top: this.y-13 + "px",
+				width: this.maxw+81 + "px",
+				height: this.h+21 + "px",
+			})
     }
 }
 

@@ -69,6 +69,9 @@
 .testenemy{
     background-size: 200px 200px;
 }
+.dad{
+	background-size: 100%;
+}
 .info{
     background-image: none !important;
     width: 600px !important;
@@ -83,10 +86,19 @@
 }
 
 .healthbar {
-    background-image: none !important;
     background-color: red;
+	background-image: url("../img/inner-healthbar.png");
+}
+.outer-healthbar {
+	background-image: url("../img/outer-healthbar.png");
 }
 .xraybar {
-    background-image: none !important;
     background-color: darkorange;
+	background-image: url("../img/inner-xraybar.png");
+}
+.outer-xraybar {
+	background-image: url("../img/outer-xraybar.png");
+}
+.watcher {
+	background-size: 101px 190px;
 }
