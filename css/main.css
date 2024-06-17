@@ -1,7 +1,14 @@
 *{
     margin:0;
     padding:0;
-    font-family: "Comic Sans MS", sans-serif;
+    font-family: "Arial Black", arial-black;
+}
+.btn-start{
+	position: absolute;
+	left: auto;
+	right: auto;
+	top: auto;
+	bottom: auto;
 }
 .element{
     position: absolute;
@@ -30,19 +37,34 @@
     height: 100vh;
     overflow: hidden;
     position: relative;
+	display: flex;
+	justify-content: center;
 }
 .elements  {
     position: relative;
-    width: 100%;
+	margin-left: auto;
+	margin-right: auto;
+	left: 10%;
+	right: 10%;
+    width: 80%;
     height: 100%;
+}
+
+.game-border{
+	background-color: #000;
+	width: 10%;
+	height: 100%;
+	position: absolute;
 }
 .floor{
     background-size: 10px 10px;
     background-image: url("../layout/assets/img/banana.png");
 }
 .background{
-    background-size: 10px 10px;
-    transform: skew(-75deg);
+    /* background-size: 10px 10px;
+    transform: skew(-75deg); */
+	background-size: 100% 100%;
+	background-image: url("../layout/assets/img/background.jpg");
 }
 .testenemy{
     background-size: 200px 200px;
