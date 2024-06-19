@@ -27,7 +27,7 @@
     opacity: 40%;
 }
 .projectilehitbox{
-    background-image: none !important;
+    background-image: none;
     background-color: #ff6123;
     opacity: 40%;
 }
@@ -71,6 +71,7 @@
 }
 .dad{
 	background-size: 100%;
+    background-repeat: no-repeat;
 }
 .info{
     background-image: none !important;
