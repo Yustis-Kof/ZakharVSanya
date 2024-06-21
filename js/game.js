@@ -269,14 +269,15 @@ class Player extends Drawable {
         this.speedPerFrame = 5;
         this.va = 0;    // Ускорение по вертикали
         this.gravity = 1;
+		this.jumpyty = 40; // Прыгучесть
 
         // Клавиши
         this.keys = {
-            ArrowLeft: false,
-            ArrowRight: false,
-            ArrowUp: false,
-            KeyK: false,
-            KeyL: false,
+            ArrowLeft: 0,
+            ArrowRight: 0,
+            ArrowUp: 0,
+            KeyK: 0,
+            KeyL: 0,
         }; // Вообще говоря, вводить как бы виртуальные флаги для клавиш - хорошая идея. Надо это запомнить
         this.createElement();
         this.bindKeyEvents();
@@ -321,7 +322,10 @@ class Player extends Drawable {
 
     changeKeyStatus(code, value){
         if(code in this.keys){
-            this.keys[code] = value;
+			if (value)
+				this.keys[code] += 1;
+			else
+				this.keys[code] = 0;
         }
     }
 
@@ -450,16 +454,22 @@ class Player extends Drawable {
         if (this.hitbox.isCollision(this.game.floor.hitbox)){
             //console.log(this)
             if (this.offsets.y > 0){
-                this.va = 0;
-                this.offsets.y = 0;
                 this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
-                if (this.state != "stand"){
-                    this.offsets.x = 0;
-                    if (this.state == "damage_lie"){
-                        this.takeDamage(2);   // Ну он же упал, лол, это больно
-                        this.game.shakeframes += 4;
-                    }
+				if (this.state == "damage_lie"){
+					this.takeDamage(2);   // Ну он же упал, лол, это больно
+					this.game.shakeframes += 4;
                 }
+				if (this.state == "damage_lie" && this.offsets.y >= this.jumpyty){	// Не придумал как по-нормальному условие сделать
+					console.log(this.offsets.y);
+					this.va = -this.va*(3/this.jumpyty);
+					this.offsets.y = -this.offsets.y*(3/this.jumpyty);
+				} else {
+					if (this.state != "stand"){
+						this.offsets.x = 0;
+					}
+				    this.va = 0;
+					this.offsets.y = 0;
+				}
             }
         } else {
             this.va = this.gravity
@@ -589,7 +599,7 @@ class Dad extends Player{
         this.w = 279;
         this.h = 479;
         this.x = 20;
-        this.y = 350;
+        this.y = 0;
         this.keyBinds = {   // Костыль для замены стрелочек на WASD у второго противника
             KeyA: "ArrowLeft",
             KeyD: "ArrowRight",
