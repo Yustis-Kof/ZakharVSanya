@@ -201,6 +201,7 @@ class Drawable {
             backgroundImage: `url("img/${this.sprite}.gif")`
         })
         this.game.$zone.append(this.$element);
+		//this.gif = new SuperGif({ gif: this.$element });
         return this.$element;
     }
 
@@ -215,9 +216,9 @@ class Drawable {
             top: this.y + "px",
             width: this.w + "px",
             height: this.h + "px",
-            backgroundImage: `url("img/${this.sprite}.gif")`
+			backgroundImage: `url(img/${this.sprite}.gif)`
         })
-    }
+	}
     
     isCollision(element) {
         let a = {
@@ -261,6 +262,8 @@ class Player extends Drawable {
         this.xray = 45;
 
         // Координаты, скорость
+		this.maxw = 279;
+		this.maxh = 479;
         this.w = 279;
         this.h = 479;
         this.x = this.game.$zone.width() / 1.2 - this.w / 2;
@@ -302,10 +305,10 @@ class Player extends Drawable {
 		};
 		
 		this.duck_hb = { // Прижок
-			x: 0,
-			y: 0,
-			w: 0,
-			h: 0
+			x: 84,
+			y: 286,
+			w: 133,
+			h: 174
 		};
         this.hitbox = new Hitbox(this.game, this);
         this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
@@ -313,6 +316,7 @@ class Player extends Drawable {
         // Противник
         this.enemy = this.game.floor;
         //if (this.mirror) this.hitbox.reverse();
+		
     }
 
     bindKeyEvents(){
@@ -329,12 +333,19 @@ class Player extends Drawable {
         }
     }
 
+	isMirrored(){
+		if (this.mirror)
+			return 1
+		else
+			return -1
+	}
+
     update(){
         // XRay
         if (this.xray > 100)
             this.xray = 100;
 
-        // Определяем спрайт
+        // 1. Определяем спрайт
         if (this.state == "stand") {
             // Проверка отражения
             if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
@@ -343,41 +354,55 @@ class Player extends Drawable {
                 this.mirror = true;
             }
             this.hitbox.reverse()   // синхронизировать отражение
-
-            this.$element.css({backgroundPositionX: "0px"})
-
-            if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
-				
+			
+			// Прыжок
+            if (this.keys.ArrowUp){
+                this.va = -3;
+                this.offsets.y = -30;
+				if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
+					this.offsets.x = -this.speedPerFrame;
+				} else if (this.keys.ArrowRight && this.hitbox.getX2() < this.game.$zone.width()){
+					this.offsets.x = this.speedPerFrame;
+				}
+				this.state = "jump";
+			}
+			
+			// Ходьба
+            else if (this.keys.ArrowLeft && this.hitbox.getX1() > 0) {
                 this.offsets.x = -this.speedPerFrame;
-				/*
-                if (this.hitbox.isCollision(this.enemy.hitbox)){
-					this.offsets.x = -this.speedPerFrame/2;
-					this.enemy.offsets.x = -this.speedPerFrame/2;
-				}*/
+				
 				if (this.mirror)
                     this.sprite = `${this.fighter}_walk_back`
                 else
                     this.sprite = `${this.fighter}_walk`
             } else if (this.keys.ArrowRight && this.hitbox.getX2() < this.game.$zone.width()){
                 this.offsets.x = this.speedPerFrame;
-				/*if (this.hitbox.isCollision(this.enemy.hitbox)){
-					this.offsets.x = this.speedPerFrame/2;
-					this.enemy.offsets.x = this.speedPerFrame/2;
-				}*/
+				
                 if (this.mirror)
-                    this.sprite = `${this.fighter}_walk`
+                    this.sprite = `${this.fighter}_walk`;
                 else
-                    this.sprite = `${this.fighter}_walk_back`
-            } else {
-                this.offsets.x = 0;
-                this.sprite = `${this.fighter}_stand`
-            }
-            if (this.keys.ArrowUp && this.va == 0){
-                this.va = -3;
-                this.offsets.y = -30;
+                    this.sprite = `${this.fighter}_walk_back`;
             }
 			
-					
+			// Удар
+			else if (this.keys.KeyK){
+                this.offsets.x = 0;
+                this.punch(162, this.dhb.y+67, 215, 35, 12, 24, 3)
+				// Кулдаун просчитывается в объекте удара
+            }
+			
+			// Блок
+			else if (this.keys.KeyL){
+                this.offsets.x = 0;
+                this.state = "block";
+            }
+			
+			// Стойка
+			else {
+                this.offsets.x = 0;
+				this.sprite = `${this.fighter}_stand`;
+			}
+				
 			// Непрохождение друг сквозь друга
 			if (this.hitbox.isCollision(this.enemy.hitbox)){
 				if (this.mirror){
@@ -386,57 +411,40 @@ class Player extends Drawable {
 				else
 					this.offsets.x += this.speedPerFrame/0.9
 			}
-			
-				
-
-            // Удар Захара
-            if (this.keys.KeyK && this.va == 0){
-                this.offsets.x = 0;
-                this.$element.css({backgroundPositionX: "-43px"})
-                this.punch(162, this.dhb.y+67, 190, 35, 22, 44, 2)
-            }
 
             // Спецатака Захара
             if (this.keys.KeyL && this.va == 0){
                 this.special();
             }
-        }
-        else {
-            this.sprite = `${this.fighter}_${this.state}`
-            if (this.state == "damage"){
-                if (this.va != 0){
-                    this.va = 0;
-                    if (this.mirror) this.offsets.x = -15;
-                    else this.offsets.x = 15;
-                    console.log(1)
-                    this.w = [this.h, this.h = this.w][0] // Свап
-                    this.state = "damage_lie";
-                } else this.offsets.x = 0;
-                if (this.cooldown == 0) this.state = "stand";
-					this.cooldown -= 1;
-            }
-            else if (this.state == "damage_lie"){
-                this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
-                if (this.cooldown == 0){
-                    this.state = "stand";
-                    this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
-                    this.w = [this.h, this.h = this.w][0] // Свап
-                    this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
-                }
-				if (this.va == 0)
-					this.cooldown -= 1;
-            }
-            else if (this.state == "fire"){
-				if (this.cooldown == 30){
-					this.projectile(162, this.dhb.y+45, 35, 35)
-				}
-                if (this.cooldown == 0){
-                    this.state = "stand";
-                }
-                this.cooldown -= 1;
-            }
-        }
+        } else {
+			this.sprite = `${this.fighter}_${this.state}`;	
+		}
+		if (this.state == "jump") {
+			if (this.offsets.x != 0){
+				this.sprite = `${this.fighter}_duck`;
+			} else {
+				this.sprite = `${this.fighter}_stand`;
+			}	
+		}
+		else if (this.state == "damage"){
+			if (this.cooldown == 0) this.state = "stand";
+				this.cooldown -= 1;
+		}
+		else if (this.state == "damage_lie"){
+			if (this.cooldown == 0){
+				this.state = "stand";
+				this.y = this.game.floor.y-this.h+1;
+			}
+			if (this.va == 0) this.cooldown -= 1;
+		}
+		else if (this.state == "fire"){
+			if (this.cooldown == 30)
+				this.projectile(162, this.dhb.y+45, 35, 35)
+			if (this.cooldown == 0) this.state = "stand";
+			this.cooldown -= 1;
+		}
 
+		// Столкновение со стеной
         if (this.offsets.y != 0 && this.state == "damage_lie" &&
         (this.hitbox.getX1() < 0 || this.hitbox.getX2() > this.game.$zone.width())){
 			this.game.shakeframes += 2;
@@ -447,14 +455,17 @@ class Player extends Drawable {
 		if (!(this.hitbox.getX1() <= 0 && this.offsets.x < 0) &&
 			!(this.hitbox.getX2() >= this.game.$zone.width() && this.offsets.x > 0))	// Да, дважды проверяю выпадение из арены, а что?
 			this.x += this.offsets.x;
-        
-        
-        // Столкновение с полом просчитывается по самому элементу;
-        // Тем не менее, в остальных столкновениях будет использоваться хитбокс
+    
+		
+        // Столкновение с полом
         if (this.hitbox.isCollision(this.game.floor.hitbox)){
             //console.log(this)
             if (this.offsets.y > 0){
                 this.y = this.game.floor.y-this.hitbox.h-this.hitbox.y+1;
+				if (this.state == "jump"){
+					this.y = this.game.floor.y-this.h+1;
+					this.state = "stand"
+				}
 				if (this.state == "damage_lie"){
 					this.takeDamage(2);   // Ну он же упал, лол, это больно
 					this.game.shakeframes += 4;
@@ -474,9 +485,20 @@ class Player extends Drawable {
         } else {
             this.va = this.gravity
         }
+	
+		// 2. Просчёт комбух (вразработке)
+		
+		// 3. Определение хитбокса
+		if (this.sprite == `${this.fighter}_duck`)
+			this.hitbox.setBox(this.duck_hb.x, this.duck_hb.y, this.duck_hb.w, this.duck_hb.h);
+		else if (this.sprite == `${this.fighter}_damage_lie`)
+			this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
+		else
+			this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
+
         this.offsets.y += this.va;
         this.y += this.offsets.y;
-    }
+	}
 
     draw(){
         super.draw();
@@ -485,12 +507,52 @@ class Player extends Drawable {
         else
             this.$element.css({transform: "scaleX(1)"})
             this.hitbox.draw();
+		
+		// 4. Просчёт элемента
+		if (this.sprite == `${this.fighter}_punch` || this.sprite == `${this.fighter}_fire`){
+			if (this.fighter == "zakhar")
+				if (this.mirror)
+					this.$element.css({
+						left: this.x + 13 + "px",
+						width: this.w + 35 + "px"
+					})
+				else
+					this.$element.css({
+						left: this.x - 35 + "px",
+						width: this.w + 35 + "px"
+					})
+			else {
+				if (this.mirror)
+					this.$element.css({
+						width: this.w + 40 + "px"
+				})
+				else
+					this.$element.css({
+						left: this.x - 35,
+						width: this.w + 40 + "px"
+					})
+			}
+		} else if (this.sprite == `${this.fighter}_damage_lie`){
+			this.w = this.maxh;
+			this.h = this.maxw;
+		} else {
+			this.$element.css({
+				backgroundPositionX: "0px"
+			})
+			this.h = this.maxh;
+			this.w = this.maxw;
+		}
     }
 
     takeDamage(hp){
-
         if (this.state != "damage" && this.state != "damage_lie"){
             this.state = "damage";
+			if (this.va != 0){
+                this.va = 0;
+				this.state = "damage_lie";
+                if (this.mirror) this.offsets.x = -15;
+					else this.offsets.x = 15;
+			} else this.offsets.x = 0;
             this.cooldown = 45;
             this.xray += hp;
             this.hp -= hp;
@@ -498,6 +560,8 @@ class Player extends Drawable {
         if (this.hp <= 0){
             this.game.end();
         }
+		      
+		
     }
 
     punch(x, y, w, h, punchtime, lifetime, repeats=1){
@@ -587,7 +651,7 @@ class TestEnemy extends Player{
     }
 
     punch(x, y, w, h, punchtime, lifetime){
-        super.punch(200, 20, 115, 35, 30, 60);
+        super.punch(200, 0, 115, 35, 30, 60);
     }
 }
 
@@ -635,13 +699,17 @@ class Dad extends Player{
     }
 	
     punch(x, y, w, h, punchtime, lifetime){
-        super.punch(200, this.dhb.y + 47, 115, 35, 15, 30, 3);
+        super.punch(156, 156, 185, 36, 18, 36);
     }
     
     takeDamage(hp){
         hp *= 0.5 // Сопротивляемость
         super.takeDamage(hp);
     }
+	
+	draw(){
+		super.draw();
+	}
 }
 
 class Hitbox extends Drawable{
