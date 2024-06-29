@@ -281,6 +281,7 @@ class Player extends Drawable {
             ArrowUp: 0,
             KeyK: 0,
             KeyL: 0,
+			KeyJ: 0
         }; // Вообще говоря, вводить как бы виртуальные флаги для клавиш - хорошая идея. Надо это запомнить
         this.createElement();
         this.bindKeyEvents();
@@ -288,6 +289,8 @@ class Player extends Drawable {
         // Состояние
         this.state = "stand"
         this.cooldown = 0;
+		
+		this.punchcd = 0;
 
         // Хитбокс
         this.dhb = { // По дефолту
@@ -344,6 +347,9 @@ class Player extends Drawable {
         // XRay
         if (this.xray > 100)
             this.xray = 100;
+		
+		if (this.punchcd > 0)
+			this.punchcd -= 1;
 
         // 1. Определяем спрайт
         if (this.state == "stand") {
@@ -385,16 +391,17 @@ class Player extends Drawable {
             }
 			
 			// Удар
-			else if (this.keys.KeyK){
+			else if (this.keys.KeyK && !this.punchcd){
                 this.offsets.x = 0;
                 this.punch(162, this.dhb.y+67, 215, 35, 12, 24, 3)
 				// Кулдаун просчитывается в объекте удара
             }
 			
 			// Блок
-			else if (this.keys.KeyL){
+			else if (this.keys.KeyJ){
                 this.offsets.x = 0;
                 this.state = "block";
+				this.cooldown = 36;
             }
 			
 			// Стойка
@@ -431,17 +438,36 @@ class Player extends Drawable {
 				this.cooldown -= 1;
 		}
 		else if (this.state == "damage_lie"){
+			if (this.cooldown == 44)
+				this.sprite = `${this.fighter}_falling`
 			if (this.cooldown == 0){
 				this.state = "stand";
 				this.y = this.game.floor.y-this.h+1;
 			}
-			if (this.va == 0) this.cooldown -= 1;
+			if (this.va == 0) {
+				this.cooldown -= 1;
+				this.sprite = `${this.fighter}_damage_lie`;
+			}
 		}
 		else if (this.state == "fire"){
 			if (this.cooldown == 30)
 				this.projectile(162, this.dhb.y+45, 35, 35)
 			if (this.cooldown == 0) this.state = "stand";
 			this.cooldown -= 1;
+		}
+		else if (this.state == "block"){
+			if (this.cooldown == 0){
+
+				this.sprite = `${this.fighter}_block`;
+				if (this.keys.KeyJ == 0){
+					this.state = "stand";
+				}
+			}
+			else {
+				this.sprite = `${this.fighter}_block_start`
+				this.cooldown -= 1;
+			}
+			
 		}
 
 		// Столкновение со стеной
@@ -467,13 +493,16 @@ class Player extends Drawable {
 					this.state = "stand"
 				}
 				if (this.state == "damage_lie"){
+					this.sprite == `${this.fighter}_damage_lie`;
 					this.takeDamage(2);   // Ну он же упал, лол, это больно
 					this.game.shakeframes += 4;
                 }
 				if (this.state == "damage_lie" && this.offsets.y >= this.jumpyty){	// Не придумал как по-нормальному условие сделать
 					console.log(this.offsets.y);
-					this.va = -this.va*(3/this.jumpyty);
-					this.offsets.y = -this.offsets.y*(3/this.jumpyty);
+					this.va = 0// -this.va*(3/this.jumpyty);
+					this.offsets.y = 0// -this.offsets.y*(3/this.jumpyty);
+					this.offsets.x = 0;
+					this.x -= 50 * this.isMirrored();
 				} else {
 					if (this.state != "stand"){
 						this.offsets.x = 0;
@@ -493,6 +522,8 @@ class Player extends Drawable {
 			this.hitbox.setBox(this.duck_hb.x, this.duck_hb.y, this.duck_hb.w, this.duck_hb.h);
 		else if (this.sprite == `${this.fighter}_damage_lie`)
 			this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
+		else if (this.sprite == `${this.fighter}_falling`)
+			this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w/2, this.lie_hb.h);
 		else
 			this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
 
@@ -509,7 +540,7 @@ class Player extends Drawable {
             this.hitbox.draw();
 		
 		// 4. Просчёт элемента
-		if (this.sprite == `${this.fighter}_punch` || this.sprite == `${this.fighter}_fire`){
+		if (this.sprite == `${this.fighter}_punch` || this.sprite == `${this.fighter}_fire` || this.state == "block"){
 			if (this.fighter == "zakhar")
 				if (this.mirror)
 					this.$element.css({
@@ -521,11 +552,11 @@ class Player extends Drawable {
 						left: this.x - 35 + "px",
 						width: this.w + 35 + "px"
 					})
-			else {
-				if (this.mirror)
-					this.$element.css({
-						width: this.w + 40 + "px"
-				})
+				else {
+					if (this.mirror)
+						this.$element.css({
+							width: this.w + 40 + "px"
+					})
 				else
 					this.$element.css({
 						left: this.x - 35,
@@ -546,16 +577,29 @@ class Player extends Drawable {
 
     takeDamage(hp){
         if (this.state != "damage" && this.state != "damage_lie"){
-            this.state = "damage";
-			if (this.va != 0){
-                this.va = 0;
-				this.state = "damage_lie";
-                if (this.mirror) this.offsets.x = -15;
-					else this.offsets.x = 15;
-			} else this.offsets.x = 0;
-            this.cooldown = 45;
-            this.xray += hp;
-            this.hp -= hp;
+			if (this.state == "block"){
+				hp *= 0.01;
+				this.x -= 0.5 * this.isMirrored();
+			}
+            else {
+				// Проверка отражения
+				if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
+					this.mirror = false;
+				} else if (this.hitbox.getX1() + this.hitbox.w / 2 <= this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
+					this.mirror = true;
+				}
+				this.hitbox.reverse()   // синхронизировать отражение
+				this.state = "damage";
+				if (this.va != 0){
+					this.va = 0;
+					this.state = "damage_lie";
+					if (this.mirror) this.offsets.x = -15;
+						else this.offsets.x = 15;
+				} else this.offsets.x = 0;
+				this.cooldown = 45;
+				this.xray += hp;
+			}
+			this.hp -= hp;
         }
         if (this.hp <= 0){
             this.game.end();
@@ -567,6 +611,7 @@ class Player extends Drawable {
     punch(x, y, w, h, punchtime, lifetime, repeats=1){
         this.state = "punch";
         this.phb = new PunchHitbox(this.game, this, punchtime, lifetime, repeats);
+		this.punchcd = lifetime * repeats + 12;
 
         this.phb.setBox(x, y, 0, h);
         this.phb.punchWidth = w;
@@ -588,7 +633,7 @@ class Player extends Drawable {
 			this.xray -= 15;
 			this.offsets.x = 0;
 			this.state = "fire";
-			this.cooldown = 60;
+			this.cooldown = 54;
 		}
 	}
 }
@@ -670,6 +715,7 @@ class Dad extends Player{
             //KeyW: "ArrowUp",
             KeyE: "KeyK",
             KeyQ: "KeyL",
+			KeyJ: "KeyF"
         }
         
         // Хитбокс
@@ -815,7 +861,7 @@ class PunchHitbox extends Hitbox{
         //console.log(this.w, this.punchWidth, this.lifetime, this.mirror);
         // Коллизия
         if (this.isCollision(this.owner.enemy.hitbox)){
-            if (this.owner.enemy.state != "damage" && this.owner.enemy.state != "damage_lie")
+            if (this.owner.enemy.state != "damage" && this.owner.enemy.state != "damage_lie" && this.owner.enemy.state != "block")
                 this.owner.xray += 15;
             this.owner.enemy.takeDamage(5);
         }
