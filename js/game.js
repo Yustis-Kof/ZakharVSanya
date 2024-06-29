@@ -90,9 +90,9 @@ class Game {
     end() {
         this.ended = true;
         let time = this.time;
-        alert("Игра окончена");
-        go('end', 'panel d-flex justify-content-center align-items-center');
-        location.reload();
+        //alert("Игра окончена");
+        //go('end', 'panel d-flex justify-content-center align-items-center');
+        //location.reload();
     }
 
     timer() {
@@ -220,7 +220,7 @@ class Drawable {
         })
 	}
     
-    isCollision(element) {
+    isCollision(element){
         let a = {
             x1: this.x,
             x2: this.x + this.w,
@@ -259,7 +259,7 @@ class Player extends Drawable {
         this.fighter = fighter  // Имя бойца
         this.sprite = `${fighter}_stand`
         this.hp = 143;
-        this.xray = 45;
+        this.xray = 0;
 
         // Координаты, скорость
 		this.maxw = 279;
@@ -279,6 +279,7 @@ class Player extends Drawable {
             ArrowLeft: 0,
             ArrowRight: 0,
             ArrowUp: 0,
+			ArrowDown: 0,
             KeyK: 0,
             KeyL: 0,
 			KeyJ: 0
@@ -311,7 +312,7 @@ class Player extends Drawable {
 			x: 84,
 			y: 286,
 			w: 133,
-			h: 174
+			h: 193
 		};
         this.hitbox = new Hitbox(this.game, this);
         this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
@@ -352,6 +353,8 @@ class Player extends Drawable {
 			this.punchcd -= 1;
 
         // 1. Определяем спрайт
+		if (this.enemy.state == "death")
+			this.state = "win";
         if (this.state == "stand") {
             // Проверка отражения
             if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
@@ -404,6 +407,13 @@ class Player extends Drawable {
 				this.cooldown = 36;
             }
 			
+			// Присяд
+			else if (this.keys.ArrowDown){
+                this.offsets.x = 0;
+                this.state = "sit";
+				this.cooldown = 44;
+            }
+			
 			// Стойка
 			else {
                 this.offsets.x = 0;
@@ -428,7 +438,10 @@ class Player extends Drawable {
 		}
 		if (this.state == "jump") {
 			if (this.offsets.x != 0){
-				this.sprite = `${this.fighter}_duck`;
+				if (this.offsets.x < 0 && !this.mirror || this.offsets.x > 0 && this.mirror)
+					this.sprite = `${this.fighter}_duck`;
+				else
+					this.sprite = `${this.fighter}_duck_back`;
 			} else {
 				this.sprite = `${this.fighter}_stand`;
 			}	
@@ -451,13 +464,12 @@ class Player extends Drawable {
 		}
 		else if (this.state == "fire"){
 			if (this.cooldown == 30)
-				this.projectile(162, this.dhb.y+45, 35, 35)
+				this.projectile(8, this.dhb.y+165, 35, 35)
 			if (this.cooldown == 0) this.state = "stand";
 			this.cooldown -= 1;
 		}
 		else if (this.state == "block"){
 			if (this.cooldown == 0){
-
 				this.sprite = `${this.fighter}_block`;
 				if (this.keys.KeyJ == 0){
 					this.state = "stand";
@@ -467,7 +479,53 @@ class Player extends Drawable {
 				this.sprite = `${this.fighter}_block_start`
 				this.cooldown -= 1;
 			}
+		}
+		else if (this.state == "sit"){
+			if (this.cooldown == 0){
+				this.sprite = `${this.fighter}_sit`;
+				if (this.keys.ArrowDown == 0){
+					this.state = "stand";
+				}
+			}
+			else {
+				this.sprite = `${this.fighter}_sit_start`
+				this.cooldown -= 1;
+			}
+		}
+		else if (this.state == "death"){
+			this.sprite = `${this.fighter}_damage_lie`;
+		}
+		// Спецатака Сани
+		else if (this.state == "beating"){
+			if (this.cooldown > 12){
+				this.enemy.mirror = !this.mirror;
 			
+				if (!this.mirror){
+					this.enemy.x = this.shb.getX2() - this.enemy.hitbox.x;
+				}
+				else {
+					this.enemy.x = this.shb.getX1() - this.enemy.hitbox.x/0.75;
+				}
+				this.enemy.y = this.shb.getY1() - this.enemy.hitbox.y - 100;
+				this.enemy.state = "being_beated";
+				this.enemy.sprite = `${this.enemy.fighter}_stand`;
+				this.enemy.offsets.y = 0;
+				this.sprite = `${this.fighter}_beating`;
+			}
+			
+			if (this.cooldown == 77 || this.cooldown == 48){
+				this.enemy.takeDamage(5);
+			}
+			
+			else if (this.cooldown == 12){
+				this.enemy.state = "stand";
+				this.enemy.takeDamage(5);
+			}
+			
+			else if (this.cooldown == 0){
+				this.state = "stand";
+			}
+			this.cooldown -= 1;
 		}
 
 		// Столкновение со стеной
@@ -518,7 +576,7 @@ class Player extends Drawable {
 		// 2. Просчёт комбух (вразработке)
 		
 		// 3. Определение хитбокса
-		if (this.sprite == `${this.fighter}_duck`)
+		if (this.sprite == `${this.fighter}_duck` || this.sprite == `${this.fighter}_sit`)
 			this.hitbox.setBox(this.duck_hb.x, this.duck_hb.y, this.duck_hb.w, this.duck_hb.h);
 		else if (this.sprite == `${this.fighter}_damage_lie`)
 			this.hitbox.setBox(this.lie_hb.x, this.lie_hb.y, this.lie_hb.w, this.lie_hb.h);
@@ -581,7 +639,7 @@ class Player extends Drawable {
 				hp *= 0.01;
 				this.x -= 0.5 * this.isMirrored();
 			}
-            else {
+            else if (this.state != "being_beated"){
 				// Проверка отражения
 				if (this.hitbox.getX1() + this.hitbox.w / 2 > this.enemy.hitbox.getX1() + this.enemy.hitbox.w / 2){
 					this.mirror = false;
@@ -599,13 +657,12 @@ class Player extends Drawable {
 				this.cooldown = 45;
 				this.xray += hp;
 			}
-			this.hp -= hp;
+			this.hp -= hp*4;
         }
         if (this.hp <= 0){
-            this.game.end();
+			this.die();
+            //this.game.end();
         }
-		      
-		
     }
 
     punch(x, y, w, h, punchtime, lifetime, repeats=1){
@@ -624,17 +681,27 @@ class Player extends Drawable {
 		speed = -5;
         if (this.mirror) speed = 5
         this.bhb = new ProjectileHitbox(this.game, this, {x: speed, y: 0});
-        this.bhb.setBox(x, y, w, h);
-        this.game.elements.push(this.bhb) // Нужно, чтобы спрайт обновлялся
+        if (!this.mirror)
+			this.bhb.setBox(x, y, w, h);
+        else
+			this.bhb.setBox(x+235, y, w, h);
+		this.game.elements.push(this.bhb) // Нужно, чтобы спрайт обновлялся
     }
 
 	special(){
-		if (this.xray >= 15){
-			this.xray -= 15;
+		if (this.xray >= 50){
+			this.xray -= 50;
 			this.offsets.x = 0;
 			this.state = "fire";
 			this.cooldown = 54;
 		}
+	}
+	
+	die(){
+		this.state = "death";
+		this.enemy.offsets.x = 0;
+		this.enemy.state = "win";
+		this.enemy.cooldown = 360;
 	}
 }
 
@@ -715,7 +782,7 @@ class Dad extends Player{
             //KeyW: "ArrowUp",
             KeyE: "KeyK",
             KeyQ: "KeyL",
-			KeyJ: "KeyF"
+			KeyF: "KeyJ"
         }
         
         // Хитбокс
@@ -733,9 +800,18 @@ class Dad extends Player{
 			h: 200
 		};
 		
+		this.shb = new Hitbox(this.game, this);
+		this.shb.setBox(8, 137, 118, 151);
+		
+		
         this.hitbox.setBox(this.dhb.x, this.dhb.y, this.dhb.w, this.dhb.h);
         this.bindKeyEvents();
     }
+	
+	update(){
+		this.shb.reverse();
+		super.update();
+	}
 
     changeKeyStatus(code, value){
         if(code in this.keyBinds){
@@ -749,9 +825,19 @@ class Dad extends Player{
     }
     
     takeDamage(hp){
-        hp *= 0.5 // Сопротивляемость
+        hp *= 0.125 // Сопротивляемость
         super.takeDamage(hp);
     }
+	
+	special(){
+		if (this.xray == 100 && this.shb.isCollision(this.enemy.hitbox)){
+			this.xray -= 100;
+			
+			this.offsets.x = 0;
+			this.state = "beating";
+			this.cooldown = 108;
+		}
+	}
 	
 	draw(){
 		super.draw();
