@@ -657,7 +657,7 @@ class Player extends Drawable {
 				this.cooldown = 45;
 				this.xray += hp;
 			}
-			this.hp -= hp*4;
+			this.hp -= hp*2.5;
         }
         if (this.hp <= 0){
 			this.die();
@@ -825,7 +825,7 @@ class Dad extends Player{
     }
     
     takeDamage(hp){
-        hp *= 0.125 // Сопротивляемость
+        hp *= 0.4 // Сопротивляемость
         super.takeDamage(hp);
     }
 	
