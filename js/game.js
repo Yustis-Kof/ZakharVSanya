@@ -395,7 +395,6 @@ class Player extends Drawable {
 			
 			// Удар
 			else if (this.keys.KeyK && !this.punchcd){
-                this.offsets.x = 0;
                 this.punch(162, this.dhb.y+67, 215, 35, 12, 24, 3)
 				// Кулдаун просчитывается в объекте удара
             }
@@ -461,6 +460,9 @@ class Player extends Drawable {
 				this.cooldown -= 1;
 				this.sprite = `${this.fighter}_damage_lie`;
 			}
+		}
+		else if (this.state == "punch"){
+			this.offsets.x = 0;
 		}
 		else if (this.state == "fire"){
 			if (this.cooldown == 30)
